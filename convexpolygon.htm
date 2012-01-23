@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<!-- saved from url=(0041)http://tryhtml5.sinaapp.com/polycoll.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="utf-8"> 
+<title> 凸多边形 碰撞检测 </title>
+
+<style>
+
+html, body {
+	height : 100%;
+	background-color : #333333;
+}
+
+#info {
+	font-size : 12pt;
+	font-weight : bolder ;
+	color : white;
+	line-height :16pt;
+	padding :10px;
+}
+
+</style>
+
+<script type="text/javascript">
+
+
+// 判断 坐标点(px,py)是否在某IsoSquare内 (x,y 为菱形中心点坐标, h为高度,宽度为h*2)
+function checkPointInIsoSquare( px, py, x, y, h){	
+	return 	checkIsoSquareCollide(x,y,h,px,py,0);
+}
+
+// 判断 某两个IsoSquare是否相交 (x,y 为菱形中心点坐标, h为高度,宽度为h*2)
+function checkIsoSquareCollide(x1,y1,h1, x2,y2,h2){			
+	return Math.abs( (x1-x2)+ (y1 - y2)*2 )< h1+h2 
+		&& Math.abs( (x1-x2)- (y1 - y2)*2 )< h1+h2;			
+}
+
+// 判断 某两个矩形是否相交 (x,y 为矩形左上角坐标, w,h为宽高)
+function checkRectCollide(x1,y1,w1,h1, x2,y2,w2,h2){
+	return  x1-x2<w2 && y1-y2<h2 && x2-x1<w1 && y2-y1<h1 ;	
+}
+
+// 判断 坐标点(px,py)是否在某矩形内 (x,y 为矩形左上角坐标, w,h为宽高)
+function checkPointInRect(px, py, x, y, w, h){
+	return  px>x && py>y && px-x<w && py-y<h ;	
+}
+				
+// 判断 坐标点(px,py)是否在某凸多边形内 (poly为多边形顶点坐标构成的二维数组)
+function checkPointInPolygon( px, py, poly){
+	//这里偷懒了, 利用了多边形碰撞函数, 其实可以根据这种情况单独写一个更高效的函数.	
+	return 	polygonCollision( poly ,[[px,py]]);
+}
+
+
+// 判断 某两个凸多边形是否相交 SAT算法. (poly为多边形顶点坐标构成的二维数组)
+function polygonCollision(poly1, poly2) {
+	var len1 = poly1.length, len2 = poly2.length; 
+	var currentPoint, nextPoint, 
+		min1, max1, min2, max2, temp ,overlap ;
+	var cx,cy;
+
+	var k=0;
+	while(k<2){
+		// SAT算法的核心部分. 思路请参考网上的详细说明. 
+		for(var i = 0; i < len1; i++){
+
+			currentPoint = poly1[i];
+			nextPoint = poly1[ (i+1)%len1 ];
+			
+			cx = currentPoint[1] - nextPoint[1];
+			cy = nextPoint[0] - currentPoint[0];
+
+			//网上的一些实现还进行了下列操作(相当于向量标准化):
+			// var distance=Math.sqrt(cx*cx+cy*cy);
+			// cx/=distance;
+			// cy/=distance;
+			// 由于此函数只关心是否碰撞 而不关心如何碰撞碰撞程度等数值.
+			// 所以 此处可以省去了这部分操作,从而提升一点点性能. 
+
+			min1 = max1 = poly1[0][0] * cx + poly1[0][1] * cy;		
+			for(var j = 1; j < len1; j++){			
+				temp = poly1[j][0] * cx + poly1[j][1] * cy;
+				if(temp > max1) max1 = temp;
+				else if(temp < min1) min1 = temp;
+			}
+			
+			min2 = max2 = poly2[0][0] * cx + poly2[0][1] * cy;		
+			for(j = 1; j < len2; j++){
+				temp = poly2[j][0] * cx + poly2[j][1] * cy;
+				if(temp > max2) max2 = temp;
+				else if(temp < min2) min2 = temp;
+			}
+			overlap = (min1 < min2) ? min2 - max1 : min1 - max2;
+
+			if(overlap >= 0) {
+				return false;
+			}
+		}
+
+		//如果 第二个多边形是一个"点",则在此刻退出;
+		if (len2<2){
+			return true;
+		}
+		k++;
+		//交换两个多边形
+		len1=len1^len2;
+		len2=len1^len2;
+		len1=len1^len2;
+		var _t=poly1;
+		poly1=poly2;
+		poly2=_t;
+	}
+	return true;
+};
+
+// Test if any hyperplane in polygon A satisfy SAT for polygon B.
+// Return true if no separating hyperplane is found.
+function polygonSAT(a, b) {
+	var alen = a.length;
+	var blen = b.length;
+
+	// For each edge PQ in A
+	var px = a[a.length - 1][0];
+	var py = a[a.length - 1][1];
+	for (var i = 0; i < alen; i++) {
+		var qx = a[i][0];
+		var qy = a[i][1];
+
+		// Compute normal vector of the hyperplane for edge PQ
+		// Assume winding orders of the polygons are counterclockwise
+		var nx = qy - py;
+		var ny = px - qx;
+		var NdotP = nx * px + ny * py;
+		
+		// Test if all vertices V in B are outside of the hyperplane
+		var allOutside = true;
+		for (var j = 0; j < blen; j++) {
+			var vx = b[j][0];
+			var vy = b[j][1];
+
+			// det = N dot (V - P) = N dot V - N dot P
+			var det = nx * vx + ny * vy - NdotP;
+			if (det < 0) {	// V is inside
+				allOutside = false;
+				break;
+			}
+		}
+
+		if (allOutside)
+			return false;
+
+		px = qx;
+		py = qy;
+	}
+	return true;
+}
+
+function polygonCollision(poly1, poly2) {
+	return polygonSAT(poly1, poly2) && polygonSAT(poly2, poly1);
+}
+
+//根据参数生成一个多边形 ( 变换后的 正n边形 )
+function getPolygon(x,y,R, n,scaleX,scaleY){
+	if (!R){
+		return [ [x,y] ];
+	}
+	n=n||4;
+		
+	scaleX=scaleX||1 , scaleY=scaleY||1;
+	var p1=[];
+	var perAng=Math.PI*2/n;
+	for (var i=0;i<n;i++){
+		var ang=perAng*i;
+		var _x= x+R*Math.cos(ang)*scaleX;
+		var _y= y+R*Math.sin(ang)*scaleY;
+		p1.push( [_x,_y]);
+	}
+	return p1;
+}
+
+//生成一个 IsoSquare菱形  (x,y 为菱形中心点坐标, h为高度,宽度为h*2)
+function getIsoSquare(x,y,h){
+	return getPolygon(x,y,h,4,1,0.5);
+}
+
+
+//生成 [lower,higher]之间(闭区间)的整数随机数
+function genRandom(lower, higher) {
+	lower = (lower||lower===0)?lower : 0;
+	higher = (higher||higher===0)?higher : 9999;
+	return Math.floor( (higher - lower + 1) * Math.random() ) + lower;
+}
+
+
+//在指定位置随机生成一个凸多边形
+function getRandomPoly(x,y){
+	var r= genRandom(3,15)*5;
+	var n= genRandom(2,9);
+	var scaleX= genRandom(10,20)/10;
+	var scaleY= genRandom(10,20)/10;
+	var poly=getPolygon(x,y,r, n,scaleX,scaleY)
+
+	return poly;	
+}
+
+
+//画点
+function drawPoint(px,py,color){
+	context.fillStyle=color||"red";
+	context.fillRect(px-1,py-1,3,3);
+}
+
+//画多边形
+function drawPolygon(poly, color){
+	context.strokeStyle=color||"black";
+
+	context.beginPath();
+	context.moveTo( poly[0][0] ,poly[0][1] );
+	for (var i=0,len=poly.length;i<len;i++){
+		var idx=(i+1)%len;	      		
+		context.lineTo( poly[idx][0] ,poly[idx][1] );
+	}
+	context.stroke();
+	context.closePath();	
+}
+
+//画IsoSquare菱形  (x,y 为菱形中心点坐标, h为高度,宽度为h*2)
+function drawIsoSquare(x,y,h ,color){
+
+	var p=getIsoSquare(x,y,h);
+	drawPolygon(p,color);
+
+}
+
+
+// 碰撞的性能测试
+function benchmark(n){
+	n=n||100;
+	var polyList=[];
+	var rs=[];
+
+	// Don't measure construction of polygons
+	// var t=Date.now();
+	for (var i=0;i<n;i++){
+		var x= genRandom(10,WIDTH-10);
+		var y= genRandom(10,HEIGHT-10);
+		var p=getRandomPoly(x,y);
+		// var coll=polygonCollision(DSquare,p);
+		// p.coll=coll;
+		polyList.push(p);
+	}
+
+	var t=Date.now();
+	for (var i = 0; i < n ; i++){
+		var p = polyList[i];
+		p.coll=polygonCollision(DSquare, p);
+	}
+
+	t=Date.now()-t;
+	document.getElementById("benchResult").innerHTML=t;
+	console.log("Benchmark result : "+t);
+
+	setTimeout(function(){
+		//绘制结果
+		for (var i=0;i<n;i++){
+			var p=polyList[i];
+			drawPolygon(p, p.coll?green:null);
+		}
+		drawPolygon(DSquare,"blue");		
+
+	},10 );
+
+}
+
+
+
+
+// 画布参数
+var canvas, context;
+var WIDTH=640, HEIGHT=400;
+
+//定义固定蓝色 IsoSquare菱形 的坐标和高度. 
+var DX=WIDTH/2, DY=HEIGHT/2 , DH=200 ;
+var DSquare=getIsoSquare(DX, DY, DH);
+
+var green="#00dd00";
+function init(){
+
+	canvas=document.getElementById("canvas");
+	canvas.width=WIDTH;
+	canvas.height=HEIGHT;
+	canvas.style.backgroundColor="white";
+	context=canvas.getContext("2d");
+	context.lineWidth=1;
+	drawPolygon(DSquare,"blue");
+
+
+	canvas.addEventListener("click",function(event){
+		
+		var x=event.offsetX||(event.pageX-canvas.offsetLeft),
+			 y=event.offsetY||(event.pageY-canvas.offsetTop);
+
+		var ind=polygonCollision(DSquare, [[x,y]]);
+		drawPoint(x,y, ind?green:null);
+
+		var poly=getRandomPoly(x,y);
+
+		var coll=polygonCollision(DSquare,poly);
+
+		drawPolygon(poly, coll?green:null);
+		
+
+	});
+
+	
+}
+
+</script>
+
+</head>
+<body onload="init()">
+
+<canvas id="canvas" width="640" height="400" style="background-color: white; "></canvas>
+<div id="info">
+点击画布, 在点击位置生成随机大小的 凸多边形, 如果生成的凸多边形与蓝色菱形相交,则为[绿色].<br>
+点击的位置 如果在蓝色菱形内,则为[绿色].<br>
+测试规模(随机生成指定数量的凸多边形与蓝色矩形进行碰撞检测)
+<input type="text" value="123" id="pcount"><input type="button" value="点击开始测试" onclick="benchmark(document.getElementById(&#39;pcount&#39;).value)">&nbsp;测试耗时:&nbsp;<span id="benchResult">1</span>
+</div>
+
+
+
+<div id="menu_item" class="jjMenuItemDiv">Copy without formatting</div></body></html>
