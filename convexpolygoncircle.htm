@@ -1,0 +1,323 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" /> 
+<title> 凸多边形 与 圆形 碰撞检测 --- 大城小胖 </title>
+
+<style>
+
+html, body {
+	height : 100%;
+	background-color : #333333;
+}
+
+#info {
+	font-size : 12pt;
+	font-weight : bolder ;
+	color : white;
+	line-height :16pt;
+	padding :10px;
+}
+
+</style>
+
+<script type="text/javascript">
+
+// Test whether a point is in a convex polygon
+// Using straight forward SAT
+function checkPointInPoly(x, y, poly) {
+	var len = poly.length;
+	var p = poly[len - 1], px = p[0] , py = p[1];
+
+	for (var i = 0; i < len; i++) {
+		var q = poly[i], qx = q[0], qy = q[1];
+
+		var det = (qy - py) * (x - px) + (px - qx) * (y - py);
+		if (det >= 0)
+			return false;
+
+		px = qx;
+		py = qy;
+	}
+
+	return true;
+}
+
+// Test whether a point is in a convex polygon
+// Using x-interval check and at most two separating axes
+function checkPointInPoly(x, y, poly) {
+	var len = poly.length;
+	var p = poly[len - 1], px = p[0] , py = p[1];
+	var found = 0;
+
+	for (var i = 0; i < len; i++) {
+		var q = poly[i], qx = q[0], qy = q[1];
+
+		var minx, maxx;
+		if (px > qx) {
+			minx = qx;
+			maxx = px;
+		}
+		else {
+			minx = px;
+			maxx = qx;
+		}
+
+ 		// Check whehter x is within interval of upper edge QP or lower edge PQ
+		if (x >= minx && x <= maxx) {
+			if ((qy - py) * (x - px) + (px - qx) * (y - py) >= 0)
+				return false;
+
+			// Previoiusly an edge has been found, so both edges is now  found.
+			if (found == 1)
+				return true;
+
+			found++;	// one edge found.
+		}
+
+		px = qx;
+		py = qy;
+	}
+
+	return false;
+}
+
+// Test whether a convex polygon intersects with a circle
+function checkPolyCircleCollide(poly, cx, cy, radius) {
+	var len = poly.length;
+	var rr = radius * radius;
+
+	// Case I: check if normal of PQ forms a separating axis
+
+	var p = poly[len - 1], px = p[0], py = p[1];
+	var m, minPCdotPC = Infinity;
+	for (var i = 0; i < len; i++) {
+		var q = poly[i], qx = q[0], qy = q[1];
+
+		// Compute normal vector of the hyperplane for edge PQ
+		// Assume winding orders of the polygons are counterclockwise
+		var nx = qy - py, ny = px - qx;
+
+		// Project PC to normal, i.e. det = (C - P) dot N
+		var pcx = cx - px, pcy = cy - py;
+		var PCdotN = pcx * nx + pcy * ny;
+
+		// If the center of circle is outside of PQ
+		if (PCdotN >= 0) {
+			// Compare distance between C and PQ with radius.
+			// Need to normalize N to find actual distance between C and PQ 
+			// i.e. det / sqrt(NdotN) >= radius
+			// To prevent taking square root, squaring both sides
+			// It is safe to do so because both LHS and RHS are positive
+			var NdotN = nx * nx + ny * ny;
+			if (PCdotN * PCdotN >= rr * NdotN)
+				return false;
+		}
+
+		// Update M (closed vertex to C) for Case II
+		var PCdotPC = pcx * pcx + pcy * pcy;
+
+		// If P is inside circle, can confirm it is interested
+		if (PCdotPC <= rr)
+			return true;
+		else if (PCdotPC <= minPCdotPC) {
+			minPCdotPC = PCdotPC;
+			m = p;
+		}
+
+		px = qx;
+		py = qy;
+	}
+
+	// Case II: check if M (closed vertex to C) to C forms a separating axis
+	var nx = m[0] - cx, ny = m[1] - cy;
+
+	// Doing square root once here should be better than
+	// doing more multiplications and branches inside the loop
+	var rhs = Math.sqrt(nx * nx + ny * ny) * radius;
+
+	var CdotN = cx * nx + cy * ny;
+	for (var i = 0; i < len; i++) {
+		var p = poly[i], px = p[0], py = p[1];
+		var CPdotN = px * nx + py * ny - CdotN;
+		if (CPdotN < rhs)
+			return true;
+	}
+
+	return false;
+}
+
+function genRandom(lower, higher) {
+	lower = (lower||lower===0)?lower : 0;
+	higher = (higher||higher===0)?higher : 9999;
+	return Math.floor( (higher - lower + 1) * Math.random() ) + lower;
+}
+
+
+
+function createPoly(x,y,R, n,scaleX,scaleY){
+	if (!R){
+		return [ [x,y] ];
+	}
+	n=n||4;
+		
+	scaleX=scaleX||1 , scaleY=scaleY||1;
+	var poly=[];
+	var perAng=Math.PI*2/n;
+	for (var i=0;i<n;i++ ){
+		var ang=perAng*i;
+		var _x= x+R*Math.cos(ang)*scaleX;
+		var _y= y+R*Math.sin(ang)*scaleY;
+		poly.push( [_x,_y]);
+	}
+	
+	return poly;
+}
+
+
+function getRandomPoly(x,y,minR,maxR,minSide,maxSide){
+	minR=minR||10;
+	maxR=maxR||30;
+	minSide=minSide||3, maxSide=maxSide||9;
+	var scaleX= genRandom(10,20)/10;
+	var scaleY= genRandom(10,20)/10;
+
+	var radius= genRandom(minR,maxR);
+	var n= genRandom(minSide,maxSide);
+
+	var poly=createPoly(x,y,radius, n,scaleX,scaleY)
+
+	return poly;	
+}
+
+//画点
+function drawPoint(px,py,color){
+	context.fillStyle=color||"red";
+	context.fillRect(px-1,py-1,3,3);
+}
+
+//画多边形
+function drawPoly(poly, color){
+	context.strokeStyle=color||"black";
+
+	context.beginPath();
+	context.moveTo( poly[0][0] ,poly[0][1] );
+	for (var i=0,len=poly.length;i<len;i++){
+		var idx=(i+1)%len;	      		
+		context.lineTo( poly[idx][0] ,poly[idx][1] );
+	}
+	context.stroke();
+	context.closePath();	
+}
+
+
+
+//画圆形  (x,y 为圆心点坐标, r为半径,宽度为h*2)
+function drawCircle(x,y,r ,color){
+	context.strokeStyle=color||"black";
+ 	context.beginPath();
+    context.arc(x, y, r, 0, 2 * Math.PI, false);
+    context.stroke();
+    context.closePath();
+
+}
+
+
+
+
+
+// 碰撞的性能测试
+function benchmarkCircle(n){
+	n=n||100;
+	var circleList=[];
+	var rs=[];
+
+	for (var i=0;i<n;i++){
+		var x= genRandom(10,WIDTH-10);
+		var y= genRandom(10,HEIGHT-10);
+		var p=genRandom(10,80);
+		circleList.push( [x,y,p] );
+	}
+
+	var t=Date.now();
+	for (var i = 0; i < n ; i++){
+		var p = circleList[i];
+		p.coll=checkPolyCircleCollide(MAIN_POLY,p[0],p[1],p[2]);
+	}
+
+	t=Date.now()-t;
+	document.getElementById("benchResult").innerHTML=t;
+	console.log("Benchmark result : "+t);
+
+	setTimeout(function(){
+		//绘制结果
+		for (var i=0;i<n;i++){
+			var p=circleList[i];
+			drawCircle(p[0],p[1],p[2], p.coll?green:null);
+		}
+		drawPoly(MAIN_POLY,"blue");		
+
+	},10 );
+
+}
+
+
+function benchmark(n){
+
+	benchmarkCircle(n);
+}
+
+
+// 画布参数
+var canvas, context;
+var WIDTH=640, HEIGHT=400;
+
+var MAIN_POLY=getRandomPoly(WIDTH/2,HEIGHT/2, 50, 80, 4,10);
+//var MAIN_POLY=getRandomPoly(WIDTH/2,HEIGHT/2, 50, 80, 3,3);
+
+var green="#00dd00";
+function init(){
+
+	canvas=document.getElementById("canvas");
+	canvas.width=WIDTH;
+	canvas.height=HEIGHT;
+	canvas.style.backgroundColor="white";
+	context=canvas.getContext("2d");
+	context.lineWidth=1;
+	drawPoly(MAIN_POLY,"blue");
+	
+
+	canvas.addEventListener("click",function(event){
+		
+		var x=event.offsetX||(event.pageX-canvas.offsetLeft),
+			 y=event.offsetY||(event.pageY-canvas.offsetTop);
+
+		var ind=checkPointInPoly( x,y, MAIN_POLY);
+		drawPoint(x,y, ind?green:null);
+
+		var r=genRandom(10,50);
+		
+		var collC= checkPolyCircleCollide(MAIN_POLY, x,y,r)
+		drawCircle(x,y,r, collC?green:null );
+	
+
+	});
+
+	
+}
+
+</script>
+
+</head>
+<body onload="init()">
+<canvas id="canvas"></canvas>
+<div id="info">
+点击画布, 在点击位置生成随机大小的 圆形, 如果生成的圆形与蓝色凸多边形相交,则为[绿色],否则为黑色.
+<br>
+测试规模(随机生成指定数量的圆形与凸多边形进行碰撞检测)
+<input type="text" value="123" id="pcount" ><input type="button" value="点击开始测试" onclick="benchmark(document.getElementById('pcount').value)" >
+&#160;测试耗时:&#160;<span id="benchResult"></span>
+</div>
+
+</body>
+</html>
