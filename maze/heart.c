@@ -26,5 +26,5 @@ void f(int x, int y, int d) {
 
 int main() {
     f(w / 2, h / 2, 0);
-    svpng(fopen("heart.png", "w"), a, b, img, 0);
+    svpng(fopen("heart.png", "wb"), a, b, img, 0);
 }
