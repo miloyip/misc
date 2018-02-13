@@ -126,7 +126,7 @@ vec3 ray_dir(float fov, vec2 pos) {
 float f(vec2 fragCoord) {
     vec3 dir = ray_dir(45.0f, fragCoord);
     vec3 eye = { 0.0f, 0.0f, 4.5f };
-    mat3 rot = rotationXY(-1.0f, 1.0f);
+    mat3 rot = rotationXY(-0.6f, 1.0f);
     
     dir = mul(rot, dir);
     eye = mul(rot, eye);
@@ -140,7 +140,7 @@ float f(vec2 fragCoord) {
 }
 
 int main() {
-    puts("\033[91m");
+    puts("\033[38;5;211m");
     for (int y = 0; y < 80; y++) {
         for (int x = 0; x < 160; x++)
             putchar("  .,-:;+=*pier#@"[(int)(f(make2((x / 160.0f - 0.5f) * 2.0f, (y / 80.0f - 0.5f) * -2.0f)) * 16.0f)]);
