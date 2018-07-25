@@ -47,8 +47,8 @@ int evaluate(const state* s) {
         CHECK(i, 0, i, 1, i, 2);    // horizontal
         CHECK(0, i, 1, i, 2, i);    // vertical
     }
-    CHECK(0, 0, 1, 1, 2, 2);        // diagnoal
-    CHECK(0, 2, 1, 1, 2, 0);        // diagnoal
+    CHECK(0, 0, 1, 1, 2, 2);        // diagonal
+    CHECK(0, 2, 1, 1, 2, 0);        // diagonal
     return 0;
 }
 
