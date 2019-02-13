@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 char* img, *p;
-const int n = 4 , s = 1 << n, a[] = { 2, s * 2, -2, -s * 2 };
+const int n = 4, s = 1 << n, a[] = { 2, s * 2, -2, -s * 2 };
 int l = 3;
 
 void step(int d) {
