@@ -174,7 +174,7 @@ function integration(h) {
 }
 
 function heart(p) {
-    var q = p.sub(new Vector2(256, 220)).mul(1/150);
+    var q = p.sub(new Vector2(256, 256)).mul(1/150);
     var xx = q.x * q.x, yy = q.y * q.y, a = xx + yy - 1;
     return a * a * a + xx * yy * q.y;
 }
