@@ -1,0 +1,179 @@
+<!-- St. Valentine's Day 2020 programmed by Milo Yip -->
+<html>
+<head>
+<script type="text/javascript">
+Vector2 = function(x, y) { this.x = x; this.y = y; };
+Vector2.prototype = {
+    len : function() { return Math.sqrt(this.x * this.x + this.y * this.y); },
+    norm : function() { return this.mul(1/this.len()); },
+    add : function(v) { return new Vector2(this.x + v.x, this.y + v.y); },
+    sub : function(v) { return new Vector2(this.x - v.x, this.y - v.y); },
+    mul : function(f) { return new Vector2(this.x * f, this.y * f); },
+    div : function(f) { var invf = 1/f; return new Vector2(this.x * invf, this.y * invf); },
+    dot : function(v) { return this.x * v.x + this.y * v.y; },
+    refl : function(n) { return this.sub(n.mul(this.dot(n)));},
+    rot : function(t) { var c = Math.cos(t), s = Math.sin(t); return new Vector2(this.x * c - this.y * s, this.x * s + this.y * c); }
+};
+Vector2.zero = new Vector2(0, 0);
+
+function r(t) { return 2 - 2 * Math.sin(t) + Math.sin(t) * Math.sqrt(Math.abs(Math.cos(t))) / (Math.sin(t) + 1.4) }
+function h(t) { var s = r(t); return new Vector2(512 + 160 * s * Math.cos(t), 256 - 160 * s * Math.sin(t)); }
+function hsl2rgb(h,s,l){s=s/100;l=l/100;var c,x,m,rgb;c=(1-Math.abs(2*l-1))*s;x=c*(1-Math.abs(((h/60)%2)-1));m=l-c/2;if(h>=0&&h<60)rgb=[c,x,0];if(h>=60&&h<120)rgb=[x,c,0];if(h>=120&&h<180)rgb=[0,c,x];if(h>=180&&h<240)rgb=[0,x,c];if(h>=240&&h<300)rgb=[x,0,c];if(h>=300&&h<360)rgb=[c,0,x];return rgb.map(v=>255*(v+m)|0);}
+
+function leaf(p, d, delta, width, start, end, depth, color) {
+    var i = start;
+    function step() {
+        var q = p.add(d);
+        if (depth == 2 && i == end - 1) {
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(q.x + (Math.random() * 2 - 1) * width * 4, q.y + (Math.random() * 2 - 1) * width * 4, Math.max(width * 4, 1), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        if (depth == 0) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineWidth = width * (end - i) / (end - start);
+            ctx.strokeStyle = "rgba(196, 128, 0, 0.5)";
+            ctx.lineTo(q.x, q.y);
+            ctx.stroke();
+        }
+        p = q;
+        d = d.rot(delta);
+        i++;
+        if (depth < 2 && i > 0 && i % 4 == 0) {
+            var r = Math.max(i / end, 0);
+            var c = Math.sin(r * Math.PI) * 0.4;
+            // if (depth == 0)
+            c *= 1 - r;
+            var nd = d.mul(c);
+            leaf(p, nd.rot(-1), delta, width * 0.5 * (1 - r), 0, end * 0.6, depth + 1, color);
+            leaf(p, nd.rot(1), delta, width * 0.5 * (1 - r), 0, end * 0.6, depth + 1, color);
+        }
+        if (i < end)
+            setTimeout(step, 20);
+    }
+    step();
+}
+
+function olive(p, d, delta, width, start, end, color) {
+    var i = start;
+    function step() {
+        if (i < 0) {
+            var q = p.add(d);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineWidth = width * (end - i) / (end - start);
+            ctx.strokeStyle = "rgba(196, 128, 0, 0.5)";
+            ctx.lineTo(q.x, q.y);
+            ctx.stroke();
+            p = q;
+            d = d.rot(delta);
+        }
+        else if (i <= 10) {
+            ctx.save();
+            var n = d.norm();
+            var t = i / 10;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(Math.atan2(n.y, n.x));
+            ctx.scale(3 * t, 2 * t);
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(width, 0, width, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        else {
+            ctx.save();
+            var n = d.norm();
+            var t = (i - 10) / (end - 10);
+            ctx.translate(p.x - t * width, p.y - t * width);
+            ctx.rotate(Math.atan2(n.y, n.x));
+            ctx.scale(3 * (1 - t), 2 * (1 - t));
+            ctx.beginPath();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+            ctx.arc(width, 0, width, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        i++;
+        if (i < end)
+            setTimeout(step, 20);
+    }
+    step();
+}
+
+function branch(start, end, delta, trans) {
+    var t = start, p = h(t).add(trans), i = -2, s = 2;
+    function step() {
+        ctx.beginPath();
+        ctx.lineWidth = 5 * s;
+        ctx.strokeStyle = "rgba(196, 128, 0, 0.5)";
+        ctx.moveTo(p.x, p.y);
+        t += delta;
+        var q = h(t).add(trans);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
+        if (i > 0 && i % 25 == 0) {
+            var c = hsl2rgb(120 + (Math.random() * 60 - 30), 20 + Math.random() * 20, 20 + Math.random() * 20);
+            leaf(p, q.sub(p).norm().mul((Math.random() + 1) * s).rot(-Math.random() * 0.5 - 0.75), 0.02, 4 * s, -5, 50, 0, 
+                "rgba(" + c[0] + "," + c[1] + "," + c[2] + ", 0.75)");
+            if (Math.random() > 0.5)
+                olive(p, q.sub(p).norm().mul((Math.random() + 1) * s).rot(Math.random() * 0.25 + 0.875), -0.02, 4 * s, -20, 20,
+                    Math.random() > 0.5 ? "rgba(50, 150, 50, 0.5)" : "rgba(0, 0, 64, 0.5)");
+        }
+        if (i > 0 && i % 25 == 12) {
+            var c = hsl2rgb(120 + (Math.random() * 60 - 30), 20 + Math.random() * 20, 20 + Math.random() * 20);
+            leaf(p, q.sub(p).norm().mul((Math.random() + 1) * s).rot(Math.random() * 0.5 + 0.75), -0.02, 4 * s, -5, 50, 0,
+                "rgba(" + c[0] + "," + c[1] + "," + c[2] + ", 0.75)");
+            if (Math.random() > 0.5)
+                olive(p, q.sub(p).norm().mul((Math.random() + 1) * s).rot(Math.random() * 0.25 - 0.875), 0.02, 4 * s, -20, 20,
+                    Math.random() > 0.5 ? "rgba(50, 150, 50, 0.5)" : "rgba(0, 0, 64, 0.5)");
+        }
+        i++;
+        s *= 0.996;
+        p = q;
+        if ((delta > 0 && t < end) || (delta < 0 && t > end)) 
+            setTimeout(step, 10);
+    }
+    step();
+}
+
+function bokeh(x, y, r, color) {
+    var i = 0;
+    function step() {
+        ctx.beginPath();
+        ctx.fillStyle = color;
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        r *= 0.95;
+        if (i++ < 5)
+           setTimeout(step, 100);
+    }
+    step();
+}
+
+function effect() {
+    var i = 0, iter = 100;
+    function step() {
+        var t = 1 - i / iter;
+        var r = Math.random() * 200 * t + 10;
+        bokeh(Math.random() * 1024, Math.random() * 1024, r, "rgba(" + (128 + Math.random() * 127) + ", " + (128 + Math.random() * 64) + ", " + (128 + Math.random() * 64) + ", " + Math.max(20 / (r * r), 0.01) + ")")
+        if (i++ < iter)
+           setTimeout(step, 100);
+    }
+    step();
+}
+function start() {
+    canvas = document.getElementById("canvas1");
+    ctx = canvas.getContext("2d");
+    setTimeout(() => branch(-Math.PI / 2, Math.PI / 2 - 0.5, 0.01, new Vector2(Math.random() * -20, Math.random() * 20 + 20)), 1000);
+    branch(-Math.PI / 2, -Math.PI * 3 / 2 + 0.5, -0.01, new Vector2(Math.random() * 20, Math.random() * 20 + 20));
+    setTimeout(effect, 2000);
+}
+</script>
+</head>
+<body onload="start()" style="background:#401010; display:grid; height: 100%">
+<canvas id="canvas1" width="1024" height="1024" style="margin: auto; height: 100%"></canvas>
+</body>
+</html>
