@@ -1,1 +1,0 @@
-const n=4,s=1<<n,a[]={1,s,-1,-s};l=3,p,q;t(d){d&=3;p-q||printf("%.2s",&"__    | |_| |      ___|_ _    | "[l*8+d*2]);p+=a[l=d];}h(d,r,n){n--&&(h(d+r,-r,n),t(d+r),h(d,r,n),t(d),h(d,r,n),t(d-r),h(d-r,-r,n));}main(){for(;p=0,q<s*s;++q%s||putchar(10))h(0,1,n);}
